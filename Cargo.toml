@@ -1,0 +1,21 @@
+[package]
+name = "table"
+version = "0.1.0"
+authors = ["kurt <kurtlawrence92@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+# kdr-aus git
+divvy = { git = "https://github.com/kdr-aus/divvy" }
+
+# crates.io
+kserd = "0.5"
+rayon = "1"
+
+[dev-dependencies]
+criterion = "*"
+
+[[bench]]
+name = "benches"
+path = "benches.rs"
+harness = false
