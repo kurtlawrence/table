@@ -2,6 +2,7 @@
 #![warn(missing_docs)]
 
 mod entry;
+mod parsing;
 #[cfg(test)]
 mod tests;
 
@@ -10,6 +11,8 @@ pub use entry::Entry;
 use rayon::prelude::*;
 use std::{cmp::*, iter::*};
 use Entry::*;
+
+pub use crate::parsing::parse_dsv;
 
 /// The main data table type.
 ///
