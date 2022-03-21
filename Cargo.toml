@@ -2,14 +2,14 @@
 name = "table"
 version = "0.1.0"
 authors = ["kurt <kurtlawrence92@gmail.com>"]
-edition = "2018"
+edition = "2021"
 
 [dependencies]
 # kdr-aus git
 divvy = { git = "https://github.com/kdr-aus/divvy" }
+kserd = { git = "https://github.com/kurtlawrence/kserd" }
 
 # crates.io
-kserd = "0.5"
 rayon = "1"
 
 [dev-dependencies]
