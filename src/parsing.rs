@@ -1,6 +1,5 @@
 use super::{Entry, Table};
 use ::kserd::Number;
-use rayon::prelude::*;
 
 /// Parse a string and split on `delimiter` and new lines.
 ///
@@ -23,57 +22,28 @@ pub fn parse_dsv(delimiter: char, data: &str) -> Table<&str> {
         b[0]
     };
 
+    std::thread::spawn(|| {});
+
     let mut lines = Vec::new();
     let mut s = data;
+    let mut cap = 0;
     while !s.is_empty() {
-        let (line, rem) = parse_line2(delimiter, s);
+        let (line, rem) = parse_line(delimiter, s, cap);
+        cap = cap.max(line.len());
         lines.push(line);
         s = rem;
     }
 
-    //     let x: Vec<Vec<Entry<&str>>> = data
-    //         .par_lines()
-    //         .map(|line| parse_line(delimiter, line))
-    //         .collect();
-
     lines.into()
 }
 
-fn parse_line(delimiter: u8, line: &str) -> Vec<Entry<&str>> {
+fn parse_line(delimiter: u8, s: &str, cap: usize) -> (Vec<Entry<&str>>, &str) {
     fn to_str(bytes: &[u8]) -> &str {
         // we know this is safe as we are converting _from_ a utf8 str (and the delimiter is a byte)
         unsafe { std::str::from_utf8_unchecked(bytes) }
     }
 
-    let mut entries = Vec::new();
-    let mut line = line.as_bytes();
-
-    let quote_byte = b'"';
-    let quote_ch = '"';
-
-    while !line.is_empty() {
-        let (entry, remaining) = quoted_str(line, delimiter, quote_byte);
-
-        line = if remaining.get(0) == Some(&delimiter) {
-            &remaining[1..]
-        } else {
-            remaining
-        };
-
-        let entry = to_str(entry).trim_end().trim_matches(quote_ch);
-        entries.push(map_entry(entry));
-    }
-
-    entries
-}
-
-fn parse_line2(delimiter: u8, s: &str) -> (Vec<Entry<&str>>, &str) {
-    fn to_str(bytes: &[u8]) -> &str {
-        // we know this is safe as we are converting _from_ a utf8 str (and the delimiter is a byte)
-        unsafe { std::str::from_utf8_unchecked(bytes) }
-    }
-
-    let mut entries = Vec::new();
+    let mut entries = Vec::with_capacity(cap);
 
     let quote_byte = b'"';
     let quote_ch = '"';
