@@ -1,6 +1,5 @@
 use super::{Entry, Table};
 use ::kserd::Number;
-use rayon::prelude::*;
 
 /// Parse a string and split on `delimiter` and new lines.
 ///
@@ -23,30 +22,46 @@ pub fn parse_dsv(delimiter: char, data: &str) -> Table<&str> {
         b[0]
     };
 
-    let x: Vec<Vec<Entry<&str>>> = data
-        .par_lines()
-        .map(|line| parse_line(delimiter, line))
-        .collect();
+    std::thread::spawn(|| {});
 
-    x.into()
+    let mut lines = Vec::new();
+    let mut s = data;
+    let mut cap = 0;
+    while !s.is_empty() {
+        let (line, rem) = parse_line(delimiter, s, cap);
+        cap = cap.max(line.len());
+        lines.push(line);
+        s = rem;
+    }
+
+    lines.into()
 }
 
-fn parse_line(delimiter: u8, line: &str) -> Vec<Entry<&str>> {
+fn parse_line(delimiter: u8, s: &str, cap: usize) -> (Vec<Entry<&str>>, &str) {
     fn to_str(bytes: &[u8]) -> &str {
         // we know this is safe as we are converting _from_ a utf8 str (and the delimiter is a byte)
         unsafe { std::str::from_utf8_unchecked(bytes) }
     }
 
-    let mut entries = Vec::new();
-    let mut line = line.as_bytes();
+    let mut entries = Vec::with_capacity(cap);
 
     let quote_byte = b'"';
     let quote_ch = '"';
 
-    while !line.is_empty() {
-        let (entry, remaining) = quoted_str(line, delimiter, quote_byte);
+    let mut s = s.as_bytes();
 
-        line = if remaining.get(0) == Some(&delimiter) {
+    loop {
+        if s.is_empty() {
+            break (entries, "");
+        }
+
+        if let Some(rem) = strip_nl(s) {
+            break (entries, to_str(rem));
+        }
+
+        let (entry, remaining) = quoted_str(s, delimiter, quote_byte);
+
+        s = if remaining.get(0) == Some(&delimiter) {
             &remaining[1..]
         } else {
             remaining
@@ -55,15 +70,22 @@ fn parse_line(delimiter: u8, line: &str) -> Vec<Entry<&str>> {
         let entry = to_str(entry).trim_end().trim_matches(quote_ch);
         entries.push(map_entry(entry));
     }
+}
 
-    entries
+fn strip_nl(string: &[u8]) -> Option<&[u8]> {
+    string
+        .strip_prefix(b"\n")
+        .or_else(|| string.strip_prefix(b"\r\n"))
 }
 
 /// Assumes `delimiter` and `quot` are valid characters.
 /// Returns the slice up _until the first **unquoted** delimiter_, and the remaining slice.
 fn quoted_str(line: &[u8], delimiter: u8, quot: u8) -> (&[u8], &[u8]) {
     let mut i = {
-        let start = line.iter().take_while(|b| b.is_ascii_whitespace()).count();
+        let start = line
+            .iter()
+            .take_while(|&&b| b.is_ascii_whitespace() && b != b'\n' && b != b'\r')
+            .count();
         &line[start..]
     };
 
@@ -73,7 +95,7 @@ fn quoted_str(line: &[u8], delimiter: u8, quot: u8) -> (&[u8], &[u8]) {
     }
 
     for (idx, &ch) in i.iter().enumerate() {
-        if !escaped && ch == delimiter {
+        if !escaped && (ch == delimiter || ch == b'\n' || ch == b'\r') {
             return (&i[..idx], &i[idx..]);
         } else if ch == quot {
             escaped = false;
@@ -211,6 +233,32 @@ Two,Three,Four";
             ]
             .into_iter()
             .map(|x| x.into_iter()),
+        );
+
+        assert_eq!(parse(',', s), table);
+    }
+
+    #[test]
+    fn quoted_new_lines() {
+        let s = "\"Hello
+world\",Yo";
+        let mut table = Table::new();
+        let o = |i| Obj(i);
+        table.add_rows(
+            vec![vec![o("Hello\nworld"), o("Yo")]]
+                .into_iter()
+                .map(|x| x.into_iter()),
+        );
+
+        assert_eq!(parse(',', s), table);
+
+        let s = "\"Hello\r\nworld\",Yo";
+        let mut table = Table::new();
+        let o = |i| Obj(i);
+        table.add_rows(
+            vec![vec![o("Hello\r\nworld"), o("Yo")]]
+                .into_iter()
+                .map(|x| x.into_iter()),
         );
 
         assert_eq!(parse(',', s), table);
