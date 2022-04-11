@@ -1,5 +1,5 @@
-use ::common::*;
 use criterion::*;
+use divvy::Str;
 use std::iter::*;
 use table::*;
 use Entry::*;
@@ -83,5 +83,19 @@ fn cloning(c: &mut Criterion) {
     });
 }
 
-criterion_group!(benches, adding_rows, cloning);
+fn parse_csv(c: &mut Criterion) {
+    let mut c = c.benchmark_group("Parse CSV");
+
+    let file = &std::fs::read_to_string("diamonds.csv").unwrap();
+    c.bench_function("parse_dsv diamonds.csv", |b| {
+        b.iter(|| black_box(parse_dsv(',', file)))
+    });
+
+    let file = &std::fs::read_to_string("aus-energy-2020.csv").unwrap();
+    c.bench_function("parse_dsv aus-energy-2020.csv", |b| {
+        b.iter(|| black_box(parse_dsv(',', file)))
+    });
+}
+
+criterion_group!(benches, adding_rows, cloning, parse_csv);
 criterion_main!(benches);
