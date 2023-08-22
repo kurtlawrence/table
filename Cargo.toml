@@ -5,12 +5,6 @@ authors = ["kurt <kurtlawrence92@gmail.com>"]
 edition = "2021"
 
 [dependencies]
-# kdr-aus git
-divvy = { git = "https://github.com/kdr-aus/divvy" }
-kserd = { git = "https://github.com/kurtlawrence/kserd" }
-
-# crates.io
-rayon = "1"
 
 [dev-dependencies]
 criterion = "*"
